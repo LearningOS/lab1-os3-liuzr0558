@@ -1,8 +1,10 @@
 //! Process management syscalls
 
-use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
-use crate::task::{exit_current_and_run_next, suspend_current_and_run_next, TaskStatus};
+use crate::config::{MAX_SYSCALL_NUM};
+use crate::task::{exit_current_and_run_next, get_current_task_info, suspend_current_and_run_next, TaskStatus};
 use crate::timer::get_time_us;
+
+pub use crate::task::increase_task_syscall_count;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -12,9 +14,9 @@ pub struct TimeVal {
 }
 
 pub struct TaskInfo {
-    status: TaskStatus,
-    syscall_times: [u32; MAX_SYSCALL_NUM],
-    time: usize,
+    pub status: TaskStatus,
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
+    pub time: usize,
 }
 
 /// task exits and submit an exit code
@@ -42,7 +44,20 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     0
 }
 
+
 /// YOUR JOB: Finish sys_task_info to pass testcases
 pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
-    -1
+    let task_info = get_current_task_info();
+    let mut syscall_times = [0u32; 500];
+
+    for (call_id, call_times) in task_info.syscall_times{
+        syscall_times[call_id] = call_times as u32;
+    }
+
+    unsafe {
+        (*ti).time = task_info.running_time;
+        (*ti).status = task_info.status;
+        (*ti).syscall_times = syscall_times;
+    }
+    0
 }
